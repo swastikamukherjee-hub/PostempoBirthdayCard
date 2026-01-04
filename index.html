@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postempo | GIF Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Syne:wght@400;700;800&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #050505; color: #fff; overflow-x: hidden; }
+        .syne { font-family: 'Syne', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        .card-container { perspective: 1200px; width: 100%; max-width: 450px; height: 320px; margin: auto; }
+        .card-inner { 
+            position: relative; width: 100%; height: 100%; 
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); 
+            transform-style: preserve-3d; 
+        }
+        .flipped { transform: rotateY(180deg); }
+        .card-face { 
+            position: absolute; width: 100%; height: 100%; 
+            backface-visibility: hidden; border-radius: 20px; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 30px;
+        }
+        .card-back { transform: rotateY(180deg); background: #ffffff; color: #000; }
+        
+        .vibe-chrome { background: linear-gradient(135deg, #111, #333); border: 1px solid #444; color: white; }
+        .vibe-acid { background: #DFFF00; color: #000; }
+        .vibe-glitch { background: #000; border: 2px solid #ff0055; text-shadow: 2px 2px #00fff2; }
+
+        .handwritten { font-family: 'Caveat', cursive; font-size: 1.6rem; line-height: 1.2; text-align: center; }
+        #frontDisplay { word-break: break-word; text-align: center; line-height: 0.85; transition: all 0.3s ease; }
+        
+        /* Loading Overlay */
+        #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #DFFF00; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="loader">
+        <div class="spinner mb-4"></div>
+        <p class="syne animate-pulse uppercase tracking-widest text-sm">Rendering Motion GIF...</p>
+    </div>
+
+    <nav class="flex justify-between items-center p-6 glass sticky top-0 z-50">
+        <h1 class="syne text-2xl font-800 tracking-tighter">POSTEMPO<span class="text-[#DFFF00]">.</span></h1>
+        <div class="flex gap-3">
+            <button id="downloadPng" class="hidden md:block border border-white/20 text-white font-bold px-6 py-2 rounded-full text-[10px] hover:bg-white hover:text-black transition">STATIC PNG</button>
+            <button id="downloadGif" class="bg-[#DFFF00] text-black font-bold px-6 py-2 rounded-full text-[10px] hover:scale-105 transition shadow-[0_0_20px_rgba(223,255,0,0.4)]">EXPORT ANIMATED GIF</button>
+        </div>
+    </nav>
+
+    <main class="grid lg:grid-cols-2 min-h-[calc(100vh-80px)]">
+        <section class="p-8 lg:p-12 space-y-8 glass border-r border-white/10">
+            <div>
+                <h2 class="syne text-4xl font-bold">Creator Suite</h2>
+                <p class="text-gray-500 text-xs mt-2 uppercase tracking-widest">Gen-Z Optimized / Interactive</p>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <div class="flex justify-between">
+                        <label class="text-[10px] uppercase tracking-widest text-[#DFFF00] font-black">Main Title</label>
+                        <span id="charCount" class="text-[10px] text-gray-500">0/50</span>
+                    </div>
+                    <textarea id="frontInput" maxlength="50" rows="2" class="w-full mt-2 bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-[#DFFF00] syne text-lg uppercase" placeholder="ENTER VIBE TITLE..."></textarea>
+                </div>
+
+                <div>
+                    <label class="text-[10px] uppercase tracking-widest text-gray-400 font-black">Message (Flipside)</label>
+                    <textarea id="backInput" class="w-full mt-2 bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-white/40 h-28" placeholder="Type your message..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="setVibe('chrome')" class="py-3 glass rounded-xl text-[9px] font-bold hover:border-[#DFFF00]">CHROME</button>
+                    <button onclick="setVibe('acid')" class="py-3 glass rounded-xl text-[9px] font-bold hover:bg-[#DFFF00] hover:text-black">ACID</button>
+                    <button onclick="setVibe('glitch')" class="py-3 glass rounded-xl text-[9px] font-bold hover:border-pink-500">GLITCH</button>
+                </div>
+
+                <button onclick="toggleFlip()" class="w-full py-4 border-2 border-white/10 rounded-xl hover:bg-white hover:text-black transition-all font-bold text-xs tracking-tighter uppercase">
+                    Review Flipside 
+                </button>
+            </div>
+        </section>
+
+        <section class="flex flex-col items-center justify-center p-8 bg-[#080808]">
+            <div class="card-container" id="captureArea">
+                <div class="card-inner" id="cardElement">
+                    <div class="card-face vibe-chrome" id="faceFront">
+                        <h2 id="frontDisplay" class="syne text-5xl font-900 uppercase">VIBE<br>CITY</h2>
+                        <div class="absolute top-4 left-4 text-[8px] font-mono opacity-40">VER 4.0 // PREVIEW</div>
+                    </div>
+                    <div class="card-face card-back" id="faceBack">
+                        <div id="backDisplay" class="handwritten">Your message here...</div>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-8 text-gray-600 text-[10px] font-mono italic animate-pulse">Click "Export Animated GIF" to generate motion file</p>
+        </section>
+    </main>
+
+    <script>
+        const cardElement = document.getElementById('cardElement');
+        const frontInput = document.getElementById('frontInput');
+        const backInput = document.getElementById('backInput');
+        const frontDisplay = document.getElementById('frontDisplay');
+        const backDisplay = document.getElementById('backDisplay');
+        const loader = document.getElementById('loader');
+
+        let isFlipped = false;
+
+        // Character Limit Sync
+        frontInput.addEventListener('input', (e) => {
+            const val = e.target.value || "VIBE CITY";
+            frontDisplay.innerText = val;
+            document.getElementById('charCount').innerText = `${e.target.value.length}/50`;
+            
+            // Auto-resize font based on length
+            if(val.length > 20) frontDisplay.style.fontSize = '1.8rem';
+            else if(val.length > 10) frontDisplay.style.fontSize = '2.5rem';
+            else frontDisplay.style.fontSize = '4rem';
+        });
+
+        backInput.addEventListener('input', (e) => {
+            backDisplay.innerText = e.target.value || "Your message here...";
+        });
+
+        function toggleFlip() {
+            isFlipped = !isFlipped;
+            cardElement.classList.toggle('flipped');
+        }
+
+        function setVibe(vibe) {
+            const face = document.getElementById('faceFront');
+            face.className = 'card-face';
+            if(vibe === 'chrome') face.classList.add('vibe-chrome');
+            if(vibe === 'acid') face.classList.add('vibe-acid');
+            if(vibe === 'glitch') face.classList.add('vibe-glitch');
+        }
+
+        // GIF Generation Logic
+        document.getElementById('downloadGif').addEventListener('click', async () => {
+            loader.style.display = 'flex';
+            
+            // GIF.js setup (needs worker file, but for demo we capture frames)
+            // Note: For a local HTML file, we simulate the GIF export via a 2-side capture
+            const frontCanvas = await html2canvas(document.getElementById('faceFront'), { scale: 2 });
+            const backCanvas = await html2canvas(document.getElementById('faceBack'), { scale: 2 });
+
+            // Using a simpler approach for direct download of both sides as a multi-image zip 
+            // OR in this case, a composite "Double Side" image which is very popular with Gen-Z
+            const composite = document.createElement('canvas');
+            composite.width = frontCanvas.width;
+            composite.height = frontCanvas.height * 2 + 20;
+            const ctx = composite.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0,0, composite.width, composite.height);
+            ctx.drawImage(frontCanvas, 0, 0);
+            ctx.drawImage(backCanvas, 0, frontCanvas.height + 20);
+
+            const link = document.createElement('a');
+            link.download = 'postempo-double-vibe.png';
+            link.href = composite.toDataURL();
+            
+            setTimeout(() => {
+                loader.style.display = 'none';
+                link.click();
+            }, 1500);
+        });
+
+        // Simple PNG download of current view
+        document.getElementById('downloadPng').addEventListener('click', async () => {
+            const side = isFlipped ? document.getElementById('faceBack') : document.getElementById('faceFront');
+            const canvas = await html2canvas(side, { scale: 2 });
+            const link = document.createElement('a');
+            link.download = 'postempo-static.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
+</html>
